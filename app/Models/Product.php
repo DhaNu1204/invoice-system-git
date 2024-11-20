@@ -12,13 +12,13 @@ class Product extends Model
 
     protected $fillable = [
         'name',
+        'code',
         'description',
-        'price',
-        'sku',
-        'stock',
+        'unit_price',
+        'is_active'
     ];
 
-    // Relationships
+    // Relationship with invoice items
     public function invoiceItems()
     {
         return $this->hasMany(InvoiceItem::class);

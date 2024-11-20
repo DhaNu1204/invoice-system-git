@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
-use App\Http\Requests\CustomerRequest;
 use Illuminate\Http\Request;
 
 class CustomerController extends Controller
@@ -19,15 +18,31 @@ class CustomerController extends Controller
         return view('customers.create');
     }
 
-    public function store(CustomerRequest $request)
+    public function store(Request $request)
     {
-        $customer = Customer::create($request->validated());
-        return redirect()->route('customers.show', $customer)
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:customers',
+            'phone' => 'nullable|string|max:20',
+            'company_name' => 'nullable|string|max:255',
+            'address' => 'nullable|string',
+            'city' => 'nullable|string|max:255',
+            'state' => 'nullable|string|max:255',
+            'postal_code' => 'nullable|string|max:20',
+            'country' => 'nullable|string|max:255',
+        ]);
+
+        Customer::create($validated);
+
+        return redirect()->route('customers.index')
             ->with('success', 'Customer created successfully.');
     }
 
     public function show(Customer $customer)
     {
+        $customer->load(['invoices' => function ($query) {
+            $query->latest();
+        }]);
         return view('customers.show', compact('customer'));
     }
 
@@ -36,16 +51,30 @@ class CustomerController extends Controller
         return view('customers.edit', compact('customer'));
     }
 
-    public function update(CustomerRequest $request, Customer $customer)
+    public function update(Request $request, Customer $customer)
     {
-        $customer->update($request->validated());
-        return redirect()->route('customers.show', $customer)
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:customers,email,' . $customer->id,
+            'phone' => 'nullable|string|max:20',
+            'company_name' => 'nullable|string|max:255',
+            'address' => 'nullable|string',
+            'city' => 'nullable|string|max:255',
+            'state' => 'nullable|string|max:255',
+            'postal_code' => 'nullable|string|max:20',
+            'country' => 'nullable|string|max:255',
+        ]);
+
+        $customer->update($validated);
+
+        return redirect()->route('customers.index')
             ->with('success', 'Customer updated successfully.');
     }
 
     public function destroy(Customer $customer)
     {
         $customer->delete();
+
         return redirect()->route('customers.index')
             ->with('success', 'Customer deleted successfully.');
     }

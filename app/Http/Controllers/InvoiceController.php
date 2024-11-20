@@ -5,80 +5,173 @@ namespace App\Http\Controllers;
 use App\Models\Invoice;
 use App\Models\Customer;
 use App\Models\Product;
+use App\Models\Setting;
 use App\Http\Requests\InvoiceRequest;
 use Illuminate\Http\Request;
-use PDF;
+use Dompdf\Dompdf;
 
 class InvoiceController extends Controller
 {
     public function index()
     {
-        $invoices = Invoice::with('customer')
+        $invoices = Invoice::with(['customer'])
             ->latest()
             ->paginate(10);
+            
         return view('invoices.index', compact('invoices'));
     }
 
     public function create()
     {
         $customers = Customer::all();
-        $products = Product::all();
-        return view('invoices.create', compact('customers', 'products'));
+        $products = Product::where('is_active', true)->get();
+        $defaultTaxRate = Setting::getSetting('default_tax_rate', 0);
+        $nextInvoiceNumber = $this->generateNextInvoiceNumber();
+        
+        return view('invoices.create', compact(
+            'customers', 
+            'products', 
+            'defaultTaxRate',
+            'nextInvoiceNumber'
+        ));
     }
 
     public function store(InvoiceRequest $request)
     {
-        \DB::transaction(function () use ($request) {
-            $invoice = Invoice::create([
-                'customer_id' => $request->customer_id,
-                'invoice_number' => 'INV-' . time(), // You might want a better number generation system
-                'invoice_date' => $request->invoice_date,
-                'due_date' => $request->due_date,
-                'status' => 'draft',
-            ]);
+        $validated = $request->validated();
+        
+        $invoice = Invoice::create([
+            'customer_id' => $validated['customer_id'],
+            'invoice_number' => $validated['invoice_number'],
+            'issue_date' => $validated['issue_date'],
+            'due_date' => $validated['due_date'],
+            'tax_rate' => $validated['tax_rate'],
+            'notes' => $validated['notes'] ?? null,
+            'status' => $request->input('status', 'draft'),
+        ]);
 
-            foreach ($request->items as $item) {
-                $invoice->items()->create([
-                    'product_id' => $item['product_id'],
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price'],
-                ]);
-            }
+        foreach ($validated['items'] as $item) {
+            $invoice->items()->create($item);
+        }
 
-            $invoice->calculateTotal();
-        });
+        // If status is 'sent', send the invoice email
+        if ($request->input('status') === 'sent') {
+            // Add invoice sending logic here
+        }
 
-        return redirect()->route('invoices.index')
+        return redirect()
+            ->route('invoices.show', $invoice)
             ->with('success', 'Invoice created successfully.');
     }
 
     public function show(Invoice $invoice)
     {
         $invoice->load(['customer', 'items.product', 'payments']);
-        return view('invoices.show', compact('invoice'));
+        $settings = Setting::first();
+        
+        return view('invoices.show', compact('invoice', 'settings'));
     }
 
     public function edit(Invoice $invoice)
     {
+        if ($invoice->status !== 'draft') {
+            return redirect()
+                ->route('invoices.show', $invoice)
+                ->with('error', 'Only draft invoices can be edited.');
+        }
+
         $customers = Customer::all();
-        $products = Product::all();
-        return view('invoices.edit', compact('invoice', 'customers', 'products'));
+        $products = Product::where('is_active', true)->get();
+        $defaultTaxRate = Setting::getSetting('default_tax_rate', 0);
+        
+        return view('invoices.edit', compact(
+            'invoice',
+            'customers', 
+            'products', 
+            'defaultTaxRate'
+        ));
     }
 
-    public function download(Invoice $invoice)
+    public function update(InvoiceRequest $request, Invoice $invoice)
     {
-        $pdf = PDF::loadView('invoices.pdf.template', compact('invoice'));
-        return $pdf->download("invoice-{$invoice->invoice_number}.pdf");
+        if ($invoice->status !== 'draft') {
+            return redirect()
+                ->route('invoices.show', $invoice)
+                ->with('error', 'Only draft invoices can be edited.');
+        }
+
+        $validated = $request->validated();
+        
+        $invoice->update([
+            'customer_id' => $validated['customer_id'],
+            'invoice_number' => $validated['invoice_number'],
+            'issue_date' => $validated['issue_date'],
+            'due_date' => $validated['due_date'],
+            'tax_rate' => $validated['tax_rate'],
+            'notes' => $validated['notes'] ?? null,
+            'status' => $request->input('status', 'draft'),
+        ]);
+
+        // Delete existing items and create new ones
+        $invoice->items()->delete();
+        foreach ($validated['items'] as $item) {
+            $invoice->items()->create($item);
+        }
+
+        // If status is 'sent', send the invoice email
+        if ($request->input('status') === 'sent') {
+            // Add invoice sending logic here
+        }
+
+        return redirect()
+            ->route('invoices.show', $invoice)
+            ->with('success', 'Invoice updated successfully.');
+    }
+
+    public function destroy(Invoice $invoice)
+    {
+        if ($invoice->status !== 'draft') {
+            return redirect()
+                ->route('invoices.show', $invoice)
+                ->with('error', 'Only draft invoices can be deleted.');
+        }
+
+        $invoice->items()->delete();
+        $invoice->delete();
+
+        return redirect()
+            ->route('invoices.index')
+            ->with('success', 'Invoice deleted successfully.');
     }
 
     public function send(Invoice $invoice)
     {
-        // Send email logic here
-        Mail::to($invoice->customer->email)
-            ->send(new InvoiceMail($invoice));
+        try {
+            $invoice->sendInvoice();
+            return redirect()
+                ->route('invoices.show', $invoice)
+                ->with('success', 'Invoice sent successfully.');
+        } catch (\Exception $e) {
+            return redirect()
+                ->route('invoices.show', $invoice)
+                ->with('error', 'Could not send invoice. Please try again.');
+        }
+    }
 
-        $invoice->update(['status' => 'sent']);
+    public function downloadPdf(Invoice $invoice)
+    {
+        $settings = Setting::first();
+        $pdf = PDF::loadView('invoices.pdf', compact('invoice', 'settings'));
+        
+        return $pdf->download("invoice-{$invoice->invoice_number}.pdf");
+    }
 
-        return back()->with('success', 'Invoice sent successfully.');
+    private function generateNextInvoiceNumber()
+    {
+        $lastInvoice = Invoice::latest()->first();
+        $prefix = 'INV-';
+        $nextNumber = $lastInvoice ? (int)substr($lastInvoice->invoice_number, 4) + 1 : 1;
+        
+        return $prefix . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
     }
 } 

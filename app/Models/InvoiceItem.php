@@ -12,33 +12,21 @@ class InvoiceItem extends Model
     protected $fillable = [
         'invoice_id',
         'product_id',
+        'description',
         'quantity',
         'unit_price',
-        'subtotal',
+        'amount'
     ];
 
-    // Relationships
+    // Relationship with invoice
     public function invoice()
     {
         return $this->belongsTo(Invoice::class);
     }
 
+    // Relationship with product
     public function product()
     {
         return $this->belongsTo(Product::class);
-    }
-
-    // Helper methods
-    protected static function boot()
-    {
-        parent::boot();
-
-        static::creating(function ($item) {
-            $item->subtotal = $item->quantity * $item->unit_price;
-        });
-
-        static::updating(function ($item) {
-            $item->subtotal = $item->quantity * $item->unit_price;
-        });
     }
 }

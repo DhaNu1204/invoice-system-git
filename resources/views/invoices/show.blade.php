@@ -7,7 +7,7 @@
             <h2>Invoice #{{ $invoice->invoice_number }}</h2>
             <div class="btn-group">
                 <a href="{{ route('invoices.edit', $invoice) }}" class="btn btn-warning">Edit</a>
-                <a href="{{ route('invoices.download', $invoice) }}" class="btn btn-secondary">Download PDF</a>
+                <a href="{{ route('invoices.pdf', $invoice) }}" class="btn btn-secondary">Download PDF</a>
                 @if($invoice->status === 'draft')
                     <form action="{{ route('invoices.send', $invoice) }}" method="POST" class="d-inline">
                         @csrf

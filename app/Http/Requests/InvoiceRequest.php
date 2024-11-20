@@ -23,12 +23,33 @@ class InvoiceRequest extends FormRequest
     {
         return [
             'customer_id' => 'required|exists:customers,id',
-            'invoice_date' => 'required|date',
-            'due_date' => 'required|date|after_or_equal:invoice_date',
+            'invoice_number' => 'required|string|unique:invoices,invoice_number,' . $this->invoice?->id,
+            'issue_date' => 'required|date',
+            'due_date' => 'required|date|after_or_equal:issue_date',
+            'tax_rate' => 'required|numeric|min:0|max:100',
+            'notes' => 'nullable|string|max:1000',
+            
+            // Invoice Items
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.description' => 'required|string|max:255',
+            'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.amount' => 'required|numeric|min:0',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'items.required' => 'At least one item is required.',
+            'items.min' => 'At least one item is required.',
+            'items.*.product_id.required' => 'Please select a product for each item.',
+            'items.*.description.required' => 'Description is required for each item.',
+            'items.*.quantity.required' => 'Quantity is required for each item.',
+            'items.*.quantity.min' => 'Quantity must be greater than 0.',
+            'items.*.unit_price.required' => 'Unit price is required for each item.',
+            'items.*.unit_price.min' => 'Unit price must be greater than or equal to 0.',
         ];
     }
 }

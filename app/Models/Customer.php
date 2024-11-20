@@ -14,16 +14,27 @@ class Customer extends Model
         'name',
         'email',
         'phone',
+        'company_name',
         'address',
         'city',
         'state',
         'postal_code',
         'country',
+        'notes',
+        'is_active'
     ];
 
-    // Relationships
+    // Relationship with invoices
     public function invoices()
     {
         return $this->hasMany(Invoice::class);
+    }
+
+    // Get total amount due from customer
+    public function getTotalDueAttribute()
+    {
+        return $this->invoices()
+            ->where('status', '!=', 'paid')
+            ->sum('total_amount');
     }
 }
