@@ -1,33 +1,20 @@
-use App\Http\Controllers\ClientController;
-use App\Http\Controllers\InvoiceController;
-use App\Http\Controllers\InvoicePdfController;
-use App\Http\Controllers\InvoiceEmailController;
+<?php
 
-Route::middleware(['auth'])->group(function () {
-    Route::resources([
-        'clients' => ClientController::class,
-        'invoices' => InvoiceController::class,
-    ]);
+use App\Http\Controllers\ProfileController;
+use Illuminate\Support\Facades\Route;
 
-    Route::get('/invoices/{invoice}/pdf/download', [InvoicePdfController::class, 'download'])
-        ->name('invoices.pdf.download');
-    Route::get('/invoices/{invoice}/pdf/view', [InvoicePdfController::class, 'stream'])
-        ->name('invoices.pdf.view');
-}); 
-
-Route::middleware(['auth'])->group(function () {
-    // ... existing routes ...
-    
-    Route::get('/invoices/{invoice}/email', [InvoiceEmailController::class, 'create'])
-        ->name('invoices.email.create');
-    Route::post('/invoices/{invoice}/email', [InvoiceEmailController::class, 'send'])
-        ->name('invoices.email.send');
+Route::get('/', function () {
+    return view('welcome');
 });
 
-// Payment routes
-Route::get('/invoices/{invoice}/payment', [InvoicePaymentController::class, 'create'])
-    ->name('invoices.payment.create');
-Route::get('/invoices/{invoice}/payment/store', [InvoicePaymentController::class, 'store'])
-    ->name('invoices.payment.store');
-Route::get('/invoices/{invoice}/payment/success', [InvoicePaymentController::class, 'success'])
-    ->name('invoices.payment.success');
+Route::get('/dashboard', function () {
+    return view('dashboard');
+})->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::middleware('auth')->group(function () {
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+});
+
+require __DIR__.'/auth.php';

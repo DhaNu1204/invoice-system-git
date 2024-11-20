@@ -10,7 +10,9 @@ return new class extends Migration
     {
         Schema::create('invoice_items', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('invoice_id')->constrained()->onDelete('cascade');
+            $table->foreignId('invoice_id')
+                  ->constrained('invoices')
+                  ->onDelete('cascade');
             $table->string('description');
             $table->decimal('quantity', 10, 2);
             $table->decimal('unit_price', 10, 2);
@@ -23,4 +25,4 @@ return new class extends Migration
     {
         Schema::dropIfExists('invoice_items');
     }
-}; 
+};
