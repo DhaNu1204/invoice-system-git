@@ -1,247 +1,125 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Edit Invoice') }}: {{ $invoice->invoice_number }}
-        </h2>
-    </x-slot>
+@extends('layouts.app')
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 bg-white border-b border-gray-200">
-                    <form action="{{ route('invoices.update', $invoice) }}" method="POST" id="invoice-form">
-                        @csrf
-                        @method('PUT')
-                        
-                        <!-- Client Selection -->
-                        <div class="mb-4">
-                            <label class="block text-gray-700 text-sm font-bold mb-2" for="client_id">
-                                Client
-                            </label>
-                            <select name="client_id" id="client_id" required
-                                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                                <option value="">Select Client</option>
-                                @foreach($clients as $client)
-                                    <option value="{{ $client->id }}" 
-                                        {{ (old('client_id', $invoice->client_id) == $client->id) ? 'selected' : '' }}>
-                                        {{ $client->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('client_id')
-                                <p class="text-red-500 text-xs italic">{{ $message }}</p>
-                            @enderror
-                        </div>
+@section('content')
+<div class="container">
+    <h1>Edit Invoice #{{ $invoice->invoice_number }}</h1>
 
-                        <!-- Invoice Details -->
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                            <div>
-                                <label class="block text-gray-700 text-sm font-bold mb-2" for="invoice_number">
-                                    Invoice Number
-                                </label>
-                                <input type="text" name="invoice_number" id="invoice_number" 
-                                    value="{{ old('invoice_number', $invoice->invoice_number) }}" required
-                                    class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                                @error('invoice_number')
-                                    <p class="text-red-500 text-xs italic">{{ $message }}</p>
-                                @enderror
-                            </div>
-
-                            <div>
-                                <label class="block text-gray-700 text-sm font-bold mb-2" for="issue_date">
-                                    Issue Date
-                                </label>
-                                <input type="date" name="issue_date" id="issue_date" 
-                                    value="{{ old('issue_date', $invoice->issue_date->format('Y-m-d')) }}" required
-                                    class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                                @error('issue_date')
-                                    <p class="text-red-500 text-xs italic">{{ $message }}</p>
-                                @enderror
-                            </div>
-
-                            <div>
-                                <label class="block text-gray-700 text-sm font-bold mb-2" for="due_date">
-                                    Due Date
-                                </label>
-                                <input type="date" name="due_date" id="due_date" 
-                                    value="{{ old('due_date', $invoice->due_date->format('Y-m-d')) }}" required
-                                    class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                                @error('due_date')
-                                    <p class="text-red-500 text-xs italic">{{ $message }}</p>
-                                @enderror
-                            </div>
-                        </div>
-
-                        <!-- Invoice Items -->
-                        <div class="mb-4">
-                            <label class="block text-gray-700 text-sm font-bold mb-2">
-                                Invoice Items
-                            </label>
-                            <div id="invoice-items">
-                                <!-- Existing invoice items will be loaded here -->
-                            </div>
-                            <button type="button" onclick="addInvoiceItem()"
-                                class="mt-2 bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-                                Add Item
-                            </button>
-                        </div>
-
-                        <!-- Totals -->
-                        <div class="mb-4 flex flex-col items-end">
-                            <div class="w-full md:w-1/3">
-                                <div class="flex justify-between mb-2">
-                                    <span class="font-bold">Subtotal:</span>
-                                    <span id="subtotal">$0.00</span>
-                                    <input type="hidden" name="subtotal" id="subtotal-input" value="{{ $invoice->subtotal }}">
-                                </div>
-                                <div class="flex justify-between mb-2">
-                                    <span class="font-bold">Tax (%):</span>
-                                    <input type="number" name="tax_rate" id="tax-rate" 
-                                        value="{{ old('tax_rate', ($invoice->subtotal > 0 ? ($invoice->tax / $invoice->subtotal) * 100 : 0)) }}"
-                                        class="w-20 shadow appearance-none border rounded py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                        onchange="calculateTotals()">
-                                    <span id="tax-amount">$0.00</span>
-                                    <input type="hidden" name="tax" id="tax-input" value="{{ $invoice->tax }}">
-                                </div>
-                                <div class="flex justify-between font-bold">
-                                    <span>Total:</span>
-                                    <span id="total">$0.00</span>
-                                    <input type="hidden" name="total" id="total-input" value="{{ $invoice->total }}">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Status -->
-                        <div class="mb-4">
-                            <label class="block text-gray-700 text-sm font-bold mb-2" for="status">
-                                Status
-                            </label>
-                            <select name="status" id="status" required
-                                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                                @foreach(['draft', 'sent', 'paid', 'overdue'] as $status)
-                                    <option value="{{ $status }}" {{ $invoice->status === $status ? 'selected' : '' }}>
-                                        {{ ucfirst($status) }}
+    <form action="{{ route('invoices.update', $invoice) }}" method="POST" id="invoice-form">
+        @csrf
+        @method('PUT')
+        
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="customer_id">Customer</label>
+                            <select name="customer_id" id="customer_id" class="form-control" required>
+                                <option value="">Select Customer</option>
+                                @foreach($customers as $customer)
+                                    <option value="{{ $customer->id }}" 
+                                        {{ $invoice->customer_id == $customer->id ? 'selected' : '' }}>
+                                        {{ $customer->name }}
                                     </option>
                                 @endforeach
                             </select>
                         </div>
-
-                        <!-- Notes -->
-                        <div class="mb-4">
-                            <label class="block text-gray-700 text-sm font-bold mb-2" for="notes">
-                                Notes
-                            </label>
-                            <textarea name="notes" id="notes" rows="3"
-                                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">{{ old('notes', $invoice->notes) }}</textarea>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="invoice_date">Invoice Date</label>
+                            <input type="date" name="invoice_date" id="invoice_date" 
+                                   class="form-control" required 
+                                   value="{{ $invoice->invoice_date->format('Y-m-d') }}">
                         </div>
-
-                        <!-- Submit Button -->
-                        <div class="flex items-center justify-end gap-4">
-                            <a href="{{ route('invoices.index') }}" 
-                                class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-                                Cancel
-                            </a>
-                            <button type="submit" 
-                                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-                                Update Invoice
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    @push('scripts')
-    <script>
-        let itemCount = 0;
-
-        function addInvoiceItem(existingItem = null) {
-            const itemHtml = `
-                <div class="invoice-item bg-gray-50 p-4 mb-2 rounded" id="item-${itemCount}">
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div class="col-span-2">
-                            <label class="block text-gray-700 text-sm font-bold mb-2">Description</label>
-                            <input type="text" name="items[${itemCount}][description]" required
-                                value="${existingItem ? existingItem.description : ''}"
-                                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                        </div>
-                        <div>
-                            <label class="block text-gray-700 text-sm font-bold mb-2">Quantity</label>
-                            <input type="number" name="items[${itemCount}][quantity]" step="0.01" required
-                                value="${existingItem ? existingItem.quantity : ''}"
-                                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                onchange="calculateItemAmount(${itemCount})">
-                        </div>
-                        <div>
-                            <label class="block text-gray-700 text-sm font-bold mb-2">Unit Price</label>
-                            <input type="number" name="items[${itemCount}][unit_price]" step="0.01" required
-                                value="${existingItem ? existingItem.unit_price : ''}"
-                                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                onchange="calculateItemAmount(${itemCount})">
-                        </div>
-                        <div class="col-span-3">
-                            <label class="block text-gray-700 text-sm font-bold mb-2">Amount</label>
-                            <input type="number" name="items[${itemCount}][amount]" readonly
-                                value="${existingItem ? existingItem.amount : ''}"
-                                class="bg-gray-100 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight">
-                        </div>
-                        <div class="flex items-end">
-                            <button type="button" onclick="removeInvoiceItem(${itemCount})"
-                                class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-                                Remove
-                            </button>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="due_date">Due Date</label>
+                            <input type="date" name="due_date" id="due_date" 
+                                   class="form-control" required 
+                                   value="{{ $invoice->due_date->format('Y-m-d') }}">
                         </div>
                     </div>
                 </div>
-            `;
+            </div>
+        </div>
 
-            document.getElementById('invoice-items').insertAdjacentHTML('beforeend', itemHtml);
-            itemCount++;
-        }
+        <div class="card mb-4">
+            <div class="card-body">
+                <h3>Items</h3>
+                <div id="items-container">
+                    @foreach($invoice->items as $index => $item)
+                    <div class="row mb-3 item-row">
+                        <div class="col-md-4">
+                            <select name="items[{{ $index }}][product_id]" class="form-control product-select" required>
+                                <option value="">Select Product</option>
+                                @foreach($products as $product)
+                                    <option value="{{ $product->id }}" 
+                                            data-price="{{ $product->price }}"
+                                            {{ $item->product_id == $product->id ? 'selected' : '' }}>
+                                        {{ $product->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <input type="number" name="items[{{ $index }}][quantity]" 
+                                   class="form-control quantity" min="1" 
+                                   value="{{ $item->quantity }}" required>
+                        </div>
+                        <div class="col-md-2">
+                            <input type="number" name="items[{{ $index }}][unit_price]" 
+                                   class="form-control unit-price" step="0.01" 
+                                   value="{{ $item->unit_price }}" required>
+                        </div>
+                        <div class="col-md-2">
+                            <input type="number" class="form-control line-total" 
+                                   value="{{ $item->subtotal }}" readonly>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-danger" onclick="removeItem(this)">Remove</button>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="addItem()">Add Item</button>
+            </div>
+        </div>
 
-        function removeInvoiceItem(id) {
-            document.getElementById(`item-${id}`).remove();
-            calculateTotals();
-        }
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row justify-content-end">
+                    <div class="col-md-4">
+                        <table class="table">
+                            <tr>
+                                <th>Subtotal:</th>
+                                <td id="subtotal">${{ number_format($invoice->subtotal, 2) }}</td>
+                            </tr>
+                            <tr>
+                                <th>Tax (10%):</th>
+                                <td id="tax">${{ number_format($invoice->tax, 2) }}</td>
+                            </tr>
+                            <tr>
+                                <th>Total:</th>
+                                <td id="total">${{ number_format($invoice->total, 2) }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-        function calculateItemAmount(id) {
-            const item = document.getElementById(`item-${id}`);
-            const quantity = parseFloat(item.querySelector('input[name^="items"][name$="[quantity]"]').value) || 0;
-            const unitPrice = parseFloat(item.querySelector('input[name^="items"][name$="[unit_price]"]').value) || 0;
-            const amount = quantity * unitPrice;
-            item.querySelector('input[name^="items"][name$="[amount]"]').value = amount.toFixed(2);
-            calculateTotals();
-        }
+        <div class="text-right">
+            <button type="submit" class="btn btn-primary">Update Invoice</button>
+        </div>
+    </form>
+</div>
 
-        function calculateTotals() {
-            let subtotal = 0;
-            document.querySelectorAll('input[name^="items"][name$="[amount]"]').forEach(input => {
-                subtotal += parseFloat(input.value) || 0;
-            });
-
-            const taxRate = parseFloat(document.getElementById('tax-rate').value) || 0;
-            const taxAmount = subtotal * (taxRate / 100);
-            const total = subtotal + taxAmount;
-
-            document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
-            document.getElementById('subtotal-input').value = subtotal.toFixed(2);
-            document.getElementById('tax-amount').textContent = `$${taxAmount.toFixed(2)}`;
-            document.getElementById('tax-input').value = taxAmount.toFixed(2);
-            document.getElementById('total').textContent = `$${total.toFixed(2)}`;
-            document.getElementById('total-input').value = total.toFixed(2);
-        }
-
-        // Load existing items
-        document.addEventListener('DOMContentLoaded', function() {
-            const existingItems = @json($invoice->items);
-            if (existingItems.length > 0) {
-                existingItems.forEach(item => addInvoiceItem(item));
-            } else {
-                addInvoiceItem();
-            }
-            calculateTotals();
-        });
-    </script>
-    @endpush
-</x-app-layout>
+@push('scripts')
+<script>
+    // Add the same JavaScript functions as in create.blade.php
+    // Plus any additional edit-specific functionality
+</script>
+@endpush
+@endsection

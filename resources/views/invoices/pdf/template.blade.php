@@ -2,33 +2,27 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Invoice {{ $invoice->invoice_number }}</title>
+    <title>Invoice #{{ $invoice->invoice_number }}</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             font-size: 14px;
-            line-height: 1.4;
-            color: #333;
+            line-height: 1.6;
         }
         .invoice-header {
             padding: 20px 0;
-            display: table;
-            width: 100%;
-        }
-        .invoice-header > div {
-            display: table-cell;
-            width: 50%;
-        }
-        .text-right {
-            text-align: right;
+            border-bottom: 2px solid #ddd;
+            margin-bottom: 20px;
         }
         .company-info {
-            color: #666;
+            float: left;
         }
-        .client-info {
-            padding: 20px 0;
-            border-top: 1px solid #ddd;
-            border-bottom: 1px solid #ddd;
+        .invoice-info {
+            float: right;
+            text-align: right;
+        }
+        .customer-info {
+            margin: 20px 0;
         }
         table {
             width: 100%;
@@ -36,101 +30,67 @@
             margin: 20px 0;
         }
         th, td {
-            padding: 12px;
-            text-align: left;
+            padding: 10px;
             border-bottom: 1px solid #ddd;
-        }
-        th {
-            background-color: #f8f9fa;
-        }
-        .amount-col {
-            text-align: right;
+            text-align: left;
         }
         .totals {
-            width: 40%;
             float: right;
-            margin: 20px 0;
+            width: 300px;
         }
-        .totals table {
-            margin: 0;
+        .totals td {
+            text-align: right;
         }
-        .totals table td {
-            border: none;
-        }
-        .notes {
-            clear: both;
-            padding: 20px 0;
-            border-top: 1px solid #ddd;
-        }
-        .status {
-            display: inline-block;
-            padding: 6px 12px;
-            border-radius: 4px;
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            color: #666;
             font-size: 12px;
-            font-weight: bold;
-        }
-        .status-paid {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        .status-pending {
-            background-color: #fff3cd;
-            color: #856404;
-        }
-        .status-overdue {
-            background-color: #f8d7da;
-            color: #721c24;
         }
     </style>
 </head>
 <body>
     <div class="invoice-header">
-        <div>
-            <h1 style="margin: 0; color: #2d3748;">INVOICE</h1>
-            <p>Invoice Number: {{ $invoice->invoice_number }}</p>
-            <p>Issue Date: {{ $invoice->issue_date->format('M d, Y') }}</p>
-            <p>Due Date: {{ $invoice->due_date->format('M d, Y') }}</p>
+        <div class="company-info">
+            <h1>{{ config('app.name') }}</h1>
+            <p>Your Company Address<br>
+               Phone: +1 234 567 8901<br>
+               Email: company@example.com</p>
         </div>
-        <div class="text-right company-info">
-            <div class="status status-{{ $invoice->status }}">
-                {{ ucfirst($invoice->status) }}
-            </div>
-            <p>Your Company Name</p>
-            <p>123 Business Street</p>
-            <p>City, State ZIP</p>
-            <p>Phone: (123) 456-7890</p>
+        <div class="invoice-info">
+            <h2>INVOICE</h2>
+            <p>Invoice #: {{ $invoice->invoice_number }}<br>
+               Date: {{ $invoice->invoice_date->format('M d, Y') }}<br>
+               Due Date: {{ $invoice->due_date->format('M d, Y') }}</p>
         </div>
+        <div style="clear: both;"></div>
     </div>
 
-    <div class="client-info">
-        <h2 style="margin: 0 0 10px 0;">Bill To:</h2>
-        <p style="margin: 0;">{{ $invoice->client->name }}</p>
-        <p style="margin: 0;">{{ $invoice->client->address }}</p>
-        <p style="margin: 0;">{{ $invoice->client->city }}, {{ $invoice->client->state }} {{ $invoice->client->postal_code }}</p>
-        <p style="margin: 0;">{{ $invoice->client->country }}</p>
-        <p style="margin: 0;">Email: {{ $invoice->client->email }}</p>
-        @if($invoice->client->phone)
-            <p style="margin: 0;">Phone: {{ $invoice->client->phone }}</p>
-        @endif
+    <div class="customer-info">
+        <h3>Bill To:</h3>
+        <p>{{ $invoice->customer->name }}<br>
+           {{ $invoice->customer->address }}<br>
+           {{ $invoice->customer->email }}<br>
+           {{ $invoice->customer->phone }}</p>
     </div>
 
     <table>
         <thead>
             <tr>
-                <th>Description</th>
-                <th class="amount-col">Quantity</th>
-                <th class="amount-col">Unit Price</th>
-                <th class="amount-col">Amount</th>
+                <th>Item</th>
+                <th>Quantity</th>
+                <th>Unit Price</th>
+                <th>Total</th>
             </tr>
         </thead>
         <tbody>
             @foreach($invoice->items as $item)
-                <tr>
-                    <td>{{ $item->description }}</td>
-                    <td class="amount-col">{{ number_format($item->quantity, 2) }}</td>
-                    <td class="amount-col">${{ number_format($item->unit_price, 2) }}</td>
-                    <td class="amount-col">${{ number_format($item->amount, 2) }}</td>
-                </tr>
+            <tr>
+                <td>{{ $item->product->name }}</td>
+                <td>{{ $item->quantity }}</td>
+                <td>${{ number_format($item->unit_price, 2) }}</td>
+                <td>${{ number_format($item->subtotal, 2) }}</td>
+            </tr>
             @endforeach
         </tbody>
     </table>
@@ -139,24 +99,23 @@
         <table>
             <tr>
                 <td>Subtotal:</td>
-                <td class="amount-col">${{ number_format($invoice->subtotal, 2) }}</td>
+                <td>${{ number_format($invoice->subtotal, 2) }}</td>
             </tr>
             <tr>
-                <td>Tax:</td>
-                <td class="amount-col">${{ number_format($invoice->tax, 2) }}</td>
+                <td>Tax (10%):</td>
+                <td>${{ number_format($invoice->tax, 2) }}</td>
             </tr>
-            <tr style="font-weight: bold;">
-                <td>Total:</td>
-                <td class="amount-col">${{ number_format($invoice->total, 2) }}</td>
+            <tr>
+                <td><strong>Total:</strong></td>
+                <td><strong>${{ number_format($invoice->total, 2) }}</strong></td>
             </tr>
         </table>
     </div>
 
-    @if($invoice->notes)
-        <div class="notes">
-            <h3 style="margin: 0 0 10px 0;">Notes:</h3>
-            <p style="margin: 0;">{{ $invoice->notes }}</p>
-        </div>
-    @endif
+    <div style="clear: both;"></div>
+
+    <div class="footer">
+        <p>Thank you for your business!</p>
+    </div>
 </body>
 </html> 
